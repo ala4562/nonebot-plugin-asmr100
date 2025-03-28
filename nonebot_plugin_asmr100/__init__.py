@@ -16,7 +16,7 @@ from nonebot.log import logger
 # 确保依赖已安装
 require("nonebot_plugin_htmlrender")
 
-from .config import Config, plugin_config
+from .config import Config, plugin_config 
 
 # 全局状态存储 - 将这些移到这里
 USER_SEARCH_STATES = {}
@@ -38,7 +38,7 @@ __plugin_meta__ = PluginMetadata(
 发送"搜音声"+关键词(用空格或"/"分割不同tag) +页数(可选)来搜索音声;
 发送"听音声"+RJxxxxx +目录名称 来下载指定文件夹内的所有音声并压缩''',
     type="application",
-    homepage="https://github.com/your-username/nonebot-plugin-asmr100",  # 需要修改
+    homepage="https://github.com/ala4562/nonebot-plugin-asmr100", 
     config=Config,
     supported_adapters={"~onebot.v11"},
 )

@@ -9,12 +9,13 @@ import os
 from pathlib import Path
 
 from nonebot import require, logger
-from nonebot.plugin import PluginMetadata
-from nonebot_plugin_localstore import get_data_dir
 
 # 确保依赖已安装
 require("nonebot_plugin_htmlrender")
 require("nonebot_plugin_localstore")
+
+# 导入这些插件提供的功能
+import nonebot_plugin_localstore as store
 
 from .config import Config, plugin_config, check_dependencies
 
@@ -22,8 +23,8 @@ from .config import Config, plugin_config, check_dependencies
 USER_SEARCH_STATES = {}
 USER_ERROR_COUNTS = {}
 
-# 确保数据目录存在
-DATA_DIR = get_data_dir("nonebot_plugin_asmr")
+# 使用 localstore 获取数据目录
+DATA_DIR = store.get_plugin_data_dir()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.info(f"ASMR100 插件数据目录: {DATA_DIR}")
 

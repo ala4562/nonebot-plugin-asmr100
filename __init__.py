@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 from nonebot import require, logger
+from nonebot.plugin import PluginMetadata
 
 # 确保依赖已安装
 require("nonebot_plugin_htmlrender")

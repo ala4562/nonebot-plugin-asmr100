@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nonebot-plugin-asmr100" 
-version = "0.2.2"
+version = "0.2.3"
 description = "一个用于在QQ群中分享ASMR音声的NoneBot2插件"
 readme = "README.md"
 requires-python = ">=3.8"

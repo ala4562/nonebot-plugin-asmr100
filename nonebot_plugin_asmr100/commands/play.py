@@ -12,7 +12,7 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent, Message, MessageSegme
 from nonebot.log import logger
 from nonebot_plugin_htmlrender import md_to_pic
 
-from .. import USER_ERROR_COUNTSfrom 
+from .. import USER_ERROR_COUNTS
 from ..config import plugin_config
 from ..utils import format_rj_id, sanitize_filename, check_user_error_limit
 from ..data_source import get_work_info,download_file, get_tracks

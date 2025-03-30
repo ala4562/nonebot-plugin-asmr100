@@ -11,8 +11,8 @@ from nonebot.plugin import PluginMetadata
 class Config(BaseModel):
     """ASMR100插件配置"""
     
-    # 数据目录
-    asmr_data_dir: Path = Path("nonebot_plugin_asmr100")
+    # # 数据目录
+    # asmr_data_dir: Path = Path("nonebot_plugin_asmr100")
     
     # HTTP请求头
     asmr_http_headers: dict = {

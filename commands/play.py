@@ -12,7 +12,7 @@ from nonebot.adapters.onebot.v11 import Bot, MessageEvent, Message, MessageSegme
 from nonebot.log import logger
 from nonebot_plugin_htmlrender import md_to_pic
 
-from .. import USER_ERROR_COUNTS
+from .. import USER_ERROR_COUNTSfrom , DATA_DIR
 from ..config import plugin_config
 from ..utils import format_rj_id, sanitize_filename, check_user_error_limit
 from ..data_source import get_work_info,download_file, get_tracks
@@ -94,7 +94,7 @@ async def handle_play(bot: Bot, event: MessageEvent, state: T_State, arg: Messag
         
         # 创建RJ专用目录
         safe_rj_id = sanitize_filename(rj_id)
-        rj_dir = plugin_config.asmr_data_dir / safe_rj_id
+        rj_dir = DATA_DIR / safe_rj_id
         rj_dir.mkdir(exist_ok=True)
         
         # 获取音频列表

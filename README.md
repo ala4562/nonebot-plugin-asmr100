@@ -96,7 +96,6 @@ plugins = ["nonebot_plugin_asmr100"]
 
 | 配置项 | 必填 | 默认值 | 说明 |
 |:-----:|:----:|:----:|:----:|
-| ASMR_DATA_DIR | 否 | nonebot_plugin_asmr100 | 数据保存目录 |
 | ASMR_ZIP_PASSWORD | 否 | afu3355 | ZIP文件密码 |
 | ASMR_MAX_ERROR_COUNT | 否 | 3 | 最大错误尝试次数 |
 
@@ -150,7 +149,7 @@ plugins = ["nonebot_plugin_asmr100"]
 - 感谢asmr-100.com
 ## 🔄 更新日志
 
-### 0.1.7 (初始版本)
+### 0.1.8 (初始版本)
 
 - 实现基本的搜索和下载功能
 - 支持文件夹结构和文件列表显示

@@ -87,10 +87,10 @@ def find_rj_directory(rj_id: str) -> Optional[Path]:
     返回:
         目录路径，若不存在则返回None
     """
-    data_dir = plugin_config.asmr_data_dir
+    from . import DATA_DIR  # 导入数据目录
     rj_id = rj_id.upper()
     for pattern in [f"*{rj_id}*", f"*{rj_id[2:]}*"]:
-        matches = list(data_dir.glob(pattern))
+        matches = list(DATA_DIR.glob(pattern))
         if matches:
             return matches[0]
     return None

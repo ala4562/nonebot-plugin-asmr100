@@ -23,7 +23,7 @@ USER_SEARCH_STATES = {}
 USER_ERROR_COUNTS = {}
 
 # 确保数据目录存在
-DATA_DIR = get_data_dir("asmr100")
+DATA_DIR = get_data_dir("nonebot_plugin_asmr")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 logger.info(f"ASMR100 插件数据目录: {DATA_DIR}")
 

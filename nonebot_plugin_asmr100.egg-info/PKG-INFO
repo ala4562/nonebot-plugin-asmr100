@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: nonebot-plugin-asmr100
-Version: 0.2.0
+Version: 0.2.1
 Summary: 一个用于在QQ群中分享ASMR音声的NoneBot2插件
 Author-email: 阿福 <cynicis2023@outlook.com>
 License: MIT
@@ -23,6 +23,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: nonebot2>=2.3.0
 Requires-Dist: nonebot-adapter-onebot>=2.0.0
 Requires-Dist: nonebot-plugin-htmlrender>=0.2.0
+Requires-Dist: nonebot-plugin-localstore>=0.4.0
 Requires-Dist: aiohttp>=3.8.0
 
 <div align="center">
@@ -176,7 +177,10 @@ plugins = ["nonebot_plugin_asmr100"]
 - 感谢asmr-100.com
 ## 🔄 更新日志
 
-### 0.2.0 (初始版本,修复bug)
+### 0.2.1 (修复bug)
+- 修复ffmpeg和7z判断 
+
+### 0.1.0 (初始版本)
 
 - 实现基本的搜索和下载功能
 - 支持文件夹结构和文件列表显示

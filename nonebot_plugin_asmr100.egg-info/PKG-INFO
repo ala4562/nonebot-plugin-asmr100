@@ -1,3 +1,30 @@
+Metadata-Version: 2.4
+Name: nonebot-plugin-asmr100
+Version: 0.1.9
+Summary: 一个用于在QQ群中分享ASMR音声的NoneBot2插件
+Author-email: 阿福 <cynicis2023@outlook.com>
+License: MIT
+Project-URL: Homepage, https://github.com/ala4562/nonebot-plugin-asmr100
+Project-URL: Bug Tracker, https://github.com/ala4562/nonebot-plugin-asmr100/issues
+Keywords: nonebot,nonebot2,asmr,plugin
+Classifier: Development Status :: 4 - Beta
+Classifier: Framework :: Robot Framework
+Classifier: Framework :: Robot Framework :: Library
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: Implementation :: CPython
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: nonebot2>=2.3.0
+Requires-Dist: nonebot-adapter-onebot>=2.0.0
+Requires-Dist: nonebot-plugin-htmlrender>=0.2.0
+Requires-Dist: aiohttp>=3.8.0
+
 <div align="center">
   <a href="https://v2.nonebot.dev/store"><img src="https://github.com/A-kirami/nonebot-plugin-template/blob/resources/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
   <br>

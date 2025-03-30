@@ -96,7 +96,7 @@ plugins = ["nonebot_plugin_asmr100"]
 
 | 配置项 | 必填 | 默认值 | 说明 |
 |:-----:|:----:|:----:|:----:|
-| ASMR_DATA_DIR | 否 | data/asmr100 | 数据保存目录 |
+| ASMR_DATA_DIR | 否 | nonebot_plugin_asmr100 | 数据保存目录 |
 | ASMR_ZIP_PASSWORD | 否 | afu3355 | ZIP文件密码 |
 | ASMR_MAX_ERROR_COUNT | 否 | 3 | 最大错误尝试次数 |
 
@@ -167,7 +167,8 @@ plugins = ["nonebot_plugin_asmr100"]
 ## 🙏 致谢
 
 - [NoneBot2](https://github.com/nonebot/nonebot2)：优秀的聊天机器人框架
-- [nonebot-plugin-htmlrender](https://github.com/nonebot/plugin-htmlrender)：提供HTML渲染支持
+- [nonebot-plugin-htmlrender](https://github.com/kexue-z/nonebot-plugin-htmlrender)：提供HTML渲染支持
+- [nonebot-plugin-asmr](https://github.com/CCYellowStar2/nonebot-plugin-asmr)：提供灵感
 
 ## 👨‍💻 作者
 

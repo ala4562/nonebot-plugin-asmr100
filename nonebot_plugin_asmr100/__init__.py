@@ -1,8 +1,8 @@
 """
 nonebot-plugin-asmr100
-~~~~~~~~~~~~~~~~~~~~
 
 一个用于在QQ群中分享ASMR音声的NoneBot2插件
+支持搜索、下载和分享ASMR音声资源
 """
 
 import os
@@ -20,7 +20,7 @@ import nonebot_plugin_localstore as store
 
 from .config import Config, plugin_config, check_dependencies
 
-# 全局状态存储
+# 用户状态管理
 USER_SEARCH_STATES = {}
 USER_ERROR_COUNTS = {}
 
@@ -32,15 +32,15 @@ logger.info(f"ASMR100 插件数据目录: {DATA_DIR}")
 # 检查依赖
 check_dependencies()
 
-# 现在导入命令模块 - 在全局变量定义之后
+# 导入命令模块
 from .commands.play import play
 from .commands.search import search, search_next
 
 __plugin_meta__ = PluginMetadata(
     name="asmr100",
-    description="能在群里听音声，支持下载后发送文件",
-    usage='''发送"听音声"+RJxxxxx +编号(可选)来下载并发送音声文件; 
-发送"搜音声"+关键词(用空格或"/"分割不同tag) +页数(可选)来搜索音声;
+    description="ASMR音声分享插件，支持搜索、下载和分享功能",
+    usage='''发送"听音声"+RJxxxxx +编号(可选)来下载并发送音声文件
+发送"搜音声"+关键词(用空格或"/"分割不同tag) +页数(可选)来搜索音声
 发送"听音声"+RJxxxxx +目录名称 来下载指定文件夹内的所有音声并压缩''',
     type="application",
     homepage="https://github.com/ala4562/nonebot-plugin-asmr100",

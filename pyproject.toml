@@ -8,7 +8,7 @@ version = "0.3.1"
 description = "一个用于在QQ群中分享ASMR音声的NoneBot2插件"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 keywords = ["nonebot", "nonebot2", "asmr", "plugin"]
 authors = [
     {name = "阿福", email = "cynicis2023@outlook.com"}  
@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: Robot Framework",
     "Framework :: Robot Framework :: Library",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",

@@ -1,34 +1,26 @@
-"""文件处理模块"""
+"""文件处理和下载模块"""
 
 import os
 import re
-import shutil
-import random
-import string
 import tempfile
+import shutil
 import zipfile
 import asyncio
 from pathlib import Path
 from typing import List, Tuple, Optional
-from contextlib import asynccontextmanager
 
 from nonebot.log import logger
-from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import Bot, MessageEvent, GroupMessageEvent
 
 from .config import plugin_config
-from .utils import sanitize_filename, get_file_size_str, async_file_operation
-
-@asynccontextmanager
-async def temp_file_manager(file_path: str):
-    """临时文件管理"""
-    try:
-        yield file_path
-    finally:
-        try:
-            if os.path.exists(file_path):
-                await async_file_operation(os.remove, file_path)
-        except Exception as e:
-            logger.error(f"清理临时文件失败: {file_path}, 错误: {str(e)}")
+from .utils import (
+    sanitize_filename, 
+    detect_file_extension, 
+    get_file_size_str, 
+    generate_unique_zip_filename,
+    async_file_operation,
+    should_convert_to_mp3
+)
 
 async def convert_to_mp3(audio_file_path: str) -> str:
     """将音频文件转换为MP3格式"""
@@ -53,11 +45,15 @@ async def convert_to_mp3(audio_file_path: str) -> str:
             if os.path.exists(audio_file_path) and os.path.exists(mp3_file_path):
                 try:
                     await async_file_operation(os.remove, audio_file_path)
-                except:
+                except OSError:
                     pass
             return mp3_file_path
         else:
+            logger.warning(f"ffmpeg转换失败，使用原文件: {stderr.decode()}")
             return audio_file_path
+    except FileNotFoundError:
+        logger.warning("ffmpeg未找到，跳过音频转换")
+        return audio_file_path
     except Exception as e:
         logger.error(f"转换过程中出错: {str(e)}")
         return audio_file_path
@@ -67,136 +63,112 @@ async def create_secure_zip(file_paths: List[str], zip_path: str, password: Opti
     if password is None:
         password = plugin_config.asmr_zip_password
         
-    try:
-        temp_zip_path = zip_path + ".temp.zip"
+    temp_zip_path = zip_path + ".temp.zip"
         
+    try:
         def create_zip():
             with zipfile.ZipFile(temp_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                 for file_path in file_paths:
-                    original_filename = os.path.basename(file_path)
-                    zipf.write(file_path, original_filename)
+                    if os.path.exists(file_path):
+                        original_filename = os.path.basename(file_path)
+                        zipf.write(file_path, original_filename)
         
         await async_file_operation(create_zip)
         
+        # 尝试使用外部工具加密
+        encrypted_success = False
+        
         try:
-            encrypted_temp_path = zip_path + ".enc.zip"
-            
+            # 尝试使用7z
+            encrypted_temp_path = zip_path + ".encrypted.7z"
             process = await asyncio.create_subprocess_exec(
-                "7z", "a", "-tzip", "-p" + password, "-mem=AES256", encrypted_temp_path, temp_zip_path,
+                '7z', 'a', '-p' + password, encrypted_temp_path, temp_zip_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await process.communicate()
             
-            if process.returncode != 0:
+            if process.returncode == 0 and os.path.exists(encrypted_temp_path):
+                await async_file_operation(shutil.move, encrypted_temp_path, zip_path)
+                await async_file_operation(os.remove, temp_zip_path)
+                encrypted_success = True
+        except FileNotFoundError:
+            pass
+        except Exception as e:
+            logger.warning(f"7z加密失败: {str(e)}")
+        
+        if not encrypted_success:
+            try:
+                # 尝试使用zip命令
+                encrypted_temp_path = zip_path + ".encrypted.zip"
                 process = await asyncio.create_subprocess_exec(
-                    "zip", "-j", "-P", password, encrypted_temp_path, temp_zip_path,
+                    'zip', '-P', password, encrypted_temp_path, temp_zip_path,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
                 stdout, stderr = await process.communicate()
-            
-            if process.returncode == 0 and os.path.exists(encrypted_temp_path):
-                await async_file_operation(shutil.move, encrypted_temp_path, zip_path)
+                
+                if process.returncode == 0 and os.path.exists(encrypted_temp_path):
+                    await async_file_operation(shutil.move, encrypted_temp_path, zip_path)
+                    await async_file_operation(os.remove, temp_zip_path)
+                    encrypted_success = True
+            except FileNotFoundError:
+                pass
+            except Exception as e:
+                logger.warning(f"zip加密失败: {str(e)}")
+        
+        
+        if not encrypted_success:
+            try:
+                import pyminizip
+                pyminizip.compress(temp_zip_path, zip_path, password, 5)
                 await async_file_operation(os.remove, temp_zip_path)
-            else:
-                logger.warning("外部ZIP加密命令失败，使用Python内置加密")
-                
-                encrypted_zip_path = zip_path + ".enc.zip"
-                
-                def encrypt_zip():
-                    with zipfile.ZipFile(temp_zip_path, 'r') as src_zip:
-                        with zipfile.ZipFile(encrypted_zip_path, 'w', zipfile.ZIP_DEFLATED) as dst_zip:
-                            dst_zip.setpassword(password.encode())
-                            
-                            for item in src_zip.infolist():
-                                data = src_zip.read(item.filename)
-                                item.flag_bits |= 0x1
-                                dst_zip.writestr(item, data)
-                
-                await async_file_operation(encrypt_zip)
-                
-                await async_file_operation(os.rename, encrypted_zip_path, zip_path)
-                await async_file_operation(os.remove, temp_zip_path)
-                
-        except Exception as e:
-            logger.error(f"外部加密命令失败: {str(e)}")
-            await async_file_operation(os.rename, temp_zip_path, zip_path)
+                encrypted_success = True
+            except ImportError:
+                logger.warning("pyminizip未安装，使用无加密ZIP")
+            except Exception as e:
+                logger.warning(f"pyminizip加密失败: {str(e)}")
+        
+        
+        if not encrypted_success:
+            await async_file_operation(shutil.move, temp_zip_path, zip_path)
+        
+        if not os.path.exists(zip_path):
+            raise Exception("ZIP文件创建失败")
         
         return zip_path
+        
     except Exception as e:
-        logger.error(f"创建ZIP文件失败: {str(e)}")
-        for path in [temp_zip_path, zip_path + ".enc.zip"]:
-            if os.path.exists(path):
-                try:
-                    await async_file_operation(os.remove, path)
-                except:
-                    pass
+        # 清理临时文件
+        temp_path = temp_zip_path
+        if os.path.exists(temp_path):
+            try:
+                await async_file_operation(os.remove, temp_path)
+            except OSError:
+                pass
         raise e
-
-async def obfuscate_audio(file_path: str) -> str:
-    """对音频文件进行处理以避免内容识别"""
-    try:
-        original_ext = os.path.splitext(file_path)[1].lower()
-        
-        def read_file():
-            with open(file_path, 'rb') as f:
-                return bytearray(f.read())
-        
-        data = await async_file_operation(read_file)
-        
-        if len(data) > 1024:
-            for _ in range(5):
-                pos = random.randint(1024, min(len(data) - 100, 2048))
-                data[pos] = random.randint(0, 255)
-            
-            rand_chars = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
-            new_path = f"{os.path.splitext(file_path)[0]}_obfs_{rand_chars}{original_ext}"
-            
-            def write_file():
-                with open(new_path, 'wb') as f:
-                    f.write(data)
-            
-            await async_file_operation(write_file)
-            
-            return new_path
-        return str(file_path)
-    except Exception as e:
-        logger.error(f"音频处理失败: {str(e)}")
-        return str(file_path)
 
 async def download_folder_files(folder_items: List[dict], folder_name: str, rj_dir: str, rj_id: str) -> Tuple[str, str]:
     """下载指定文件夹中的所有音频文件并创建ZIP"""
     downloaded_files = []
-    converted_count = 0
     
     try:
-        folder_path = Path(rj_dir) / sanitize_filename(folder_name)
+        clean_folder_name = folder_name.replace('/', '_').replace('\\', '_')
+        folder_path = Path(rj_dir) / sanitize_filename(clean_folder_name)
         folder_path.mkdir(exist_ok=True)
         
-        total_files = sum(1 for item in folder_items if item["type"] == "audio")
-        
-        # 递归处理文件和子文件夹
         async def process_items(items, current_path):
-            nonlocal downloaded_files, converted_count
+            nonlocal downloaded_files
             
             for item in items:
-                if item["type"] == "audio":
-                    url = item["mediaDownloadUrl"]
-                    title = item["title"]
+                if item.get("type") == "audio":
+                    url = item.get("mediaDownloadUrl") or item.get("url")
+                    title = item.get("title", "")
                     
-                    # 确定文件后缀名
-                    if ".wav" in title.lower():
-                        extension = ".wav"
-                    elif ".flac" in title.lower():
-                        extension = ".flac"
-                    elif ".ogg" in title.lower():
-                        extension = ".ogg"
-                    elif ".m4a" in title.lower():
-                        extension = ".m4a"
-                    else:
-                        extension = ".mp3"
+                    if not url or not title:
+                        continue
                     
+                    extension = detect_file_extension(title)
                     safe_filename = sanitize_filename(title)
                     file_path = current_path / f"{safe_filename}{extension}"
                     
@@ -205,18 +177,18 @@ async def download_folder_files(folder_items: List[dict], folder_name: str, rj_d
                         await download_file(url, file_path)
                         
                         original_path = str(file_path)
-                        if extension.lower() in [".wav", ".flac", ".ogg"]:
+                        # 多文件下载时，只转换音频为MP3（不包括视频）
+                        if should_convert_to_mp3(title, is_single_file=False):
                             mp3_path = await convert_to_mp3(original_path)
                             if mp3_path != original_path:
                                 file_path = Path(mp3_path)
-                                converted_count += 1
                         
                         downloaded_files.append(str(file_path))
                     except Exception as e:
-                        logger.error(f"下载文件失败: {str(e)}")
+                        logger.error(f"下载文件失败 {title}: {str(e)}")
                 
-                elif item["type"] == "folder" and "children" in item:
-                    sub_folder_name = sanitize_filename(item["title"])
+                elif item.get("type") == "folder" and "children" in item:
+                    sub_folder_name = sanitize_filename(item.get("title", ""))
                     sub_folder_path = current_path / sub_folder_name
                     sub_folder_path.mkdir(exist_ok=True)
                     
@@ -225,9 +197,8 @@ async def download_folder_files(folder_items: List[dict], folder_name: str, rj_d
         await process_items(folder_items, folder_path)
         
         if downloaded_files:
-            safe_folder_name = sanitize_filename(folder_name)
-            rj_number = re.sub(r'[^0-9]', '', rj_id)
-            zip_filename = f"{rj_number}_{safe_folder_name}.zip"
+            display_name = folder_name.split('/')[-1] if '/' in folder_name else folder_name
+            zip_filename = generate_unique_zip_filename(rj_id, f"folder_{sanitize_filename(display_name)}")
             zip_path = os.path.join(rj_dir, zip_filename)
             
             await create_secure_zip(downloaded_files, zip_path)
@@ -243,33 +214,17 @@ async def download_folder_files(folder_items: List[dict], folder_name: str, rj_d
         raise e
 
 async def download_single_file_zip(url: str, title: str, rj_dir: str, rj_id: str, track_index: int) -> Tuple[str, str]:
-    """下载单个音频文件并创建ZIP"""
+    """下载单个音频文件并创建ZIP（不转换格式）"""
     try:
-        if ".wav" in title.lower():
-            extension = ".wav"
-        elif ".flac" in title.lower():
-            extension = ".flac"
-        elif ".ogg" in title.lower():
-            extension = ".ogg"
-        elif ".m4a" in title.lower():
-            extension = ".m4a"
-        else:
-            extension = ".mp3"
-        
+        extension = detect_file_extension(title)
         safe_filename = sanitize_filename(title)
         file_path = Path(rj_dir) / f"{safe_filename}{extension}"
         
         from .data_source import download_file
         await download_file(url, file_path)
         
-        original_path = str(file_path)
-        if extension.lower() in [".wav", ".flac", ".ogg"]:
-            mp3_path = await convert_to_mp3(original_path)
-            if mp3_path != original_path:
-                file_path = Path(mp3_path)
         
-        rj_number = re.sub(r'[^0-9]', '', rj_id)
-        zip_filename = f"{rj_number}.zip"
+        zip_filename = generate_unique_zip_filename(rj_id, f"single_{track_index}")
         zip_path = os.path.join(rj_dir, zip_filename)
         
         await create_secure_zip([str(file_path)], zip_path)
@@ -279,27 +234,16 @@ async def download_single_file_zip(url: str, title: str, rj_dir: str, rj_id: str
         
         return zip_path, zip_size_str
     except Exception as e:
-        logger.error(f"下载文件时出错: {str(e)}")
+        logger.error(f"下载单个文件时出错: {str(e)}")
         raise e
 
 async def download_all_files(urls: List[str], keywords: List[str], rj_dir: str, rj_id: str) -> Tuple[str, str]:
     """下载所有音频文件并创建ZIP"""
     downloaded_files = []
-    converted_count = 0
     
     try:
         for index, (url, title) in enumerate(zip(urls, keywords)):            
-            if ".wav" in title.lower():
-                extension = ".wav"
-            elif ".flac" in title.lower():
-                extension = ".flac"
-            elif ".ogg" in title.lower():
-                extension = ".ogg"
-            elif ".m4a" in title.lower():
-                extension = ".m4a"
-            else:
-                extension = ".mp3"
-            
+            extension = detect_file_extension(title)
             safe_filename = sanitize_filename(title)
             file_path = Path(rj_dir) / f"{safe_filename}{extension}"
             
@@ -308,19 +252,18 @@ async def download_all_files(urls: List[str], keywords: List[str], rj_dir: str, 
                 await download_file(url, file_path)
                 
                 original_path = str(file_path)
-                if extension.lower() in [".wav", ".flac", ".ogg"]:
+                # 多文件下载时，只转换音频为MP3（不包括视频）
+                if should_convert_to_mp3(title, is_single_file=False):
                     mp3_path = await convert_to_mp3(original_path)
                     if mp3_path != original_path:
                         file_path = Path(mp3_path)
-                        converted_count += 1
                 
                 downloaded_files.append(str(file_path))
             except Exception as e:
-                logger.error(f"下载文件失败: {str(e)}")
+                logger.error(f"下载文件失败 {title}: {str(e)}")
         
         if downloaded_files:
-            rj_number = re.sub(r'[^0-9]', '', rj_id)
-            zip_filename = f"{rj_number}.zip"
+            zip_filename = generate_unique_zip_filename(rj_id, "all")
             zip_path = os.path.join(rj_dir, zip_filename)
             
             await create_secure_zip(downloaded_files, zip_path)
@@ -340,99 +283,84 @@ async def safe_upload_file(bot: Bot, event: MessageEvent, original_file_path: st
     original_file_path = str(original_file_path)
     processed_file_path = original_file_path
     
-    if any(original_file_path.lower().endswith(ext) for ext in ['.wav', '.flac', '.ogg']):
-        try:
-            mp3_path = await convert_to_mp3(original_file_path)
-            if mp3_path != original_file_path:
-                processed_file_path = mp3_path
-        except Exception as e:
-            logger.error(f"转换音频文件失败，继续使用原文件: {str(e)}")
+    # 单文件下载不进行格式转换，保持原始格式
     
     file_size = os.path.getsize(processed_file_path)
     file_size_str = get_file_size_str(file_size)
     
-    original_ext = os.path.splitext(processed_file_path)[1].lower()
-    if processed_file_path.lower().endswith('.mp3'):
-        file_ext = ".mp3"
-    elif processed_file_path.lower().endswith('.wav'):
-        file_ext = ".wav"
-    elif processed_file_path.lower().endswith('.flac'):
-        file_ext = ".flac"
-    elif processed_file_path.lower().endswith('.ogg'):
-        file_ext = ".ogg"
-    elif processed_file_path.lower().endswith('.m4a'):
-        file_ext = ".m4a"
-    elif processed_file_path.lower().endswith('.zip'):
-        file_ext = ".zip"
-    else:
+    # 确定文件扩展名
+    file_ext = Path(processed_file_path).suffix.lower()
+    if not file_ext:
         file_ext = ".mp3"
     
-    if not file_ext.lower() == ".zip":
-        obfuscated_file_path = await obfuscate_audio(processed_file_path)
-    else:
-        obfuscated_file_path = processed_file_path
-    
+    # 生成上传文件名
     rj_number = re.sub(r'[^0-9]', '', rj_id)
+    original_filename = os.path.basename(processed_file_path)
     
-    if file_ext.lower() == ".zip":
-        upload_filename = os.path.basename(processed_file_path)
+    if file_ext == ".zip":
+        upload_filename = original_filename
     else:
-        original_filename = os.path.basename(processed_file_path)
-        if not original_filename.startswith(rj_number):
+        if not original_filename.startswith(rj_number) and rj_number:
             upload_filename = f"{rj_number}_{original_filename}"
         else:
             upload_filename = original_filename
     
+    # 创建临时文件用于上传
     temp_dir = tempfile.gettempdir()
     temp_file_path = os.path.join(temp_dir, upload_filename)
     
-    await async_file_operation(shutil.copy2, obfuscated_file_path, temp_file_path)
-    logger.info(f"文件已复制到临时目录: {temp_file_path}")
-    
-    abs_path = os.path.abspath(temp_file_path)
-    
     try:
-        logger.info(f"尝试上传文件: {abs_path}，文件名: {upload_filename}")
-        if isinstance(event, GroupMessageEvent):
-            await bot.upload_group_file(
-                group_id=event.group_id,
-                file=abs_path,
-                name=upload_filename
-            )
-        else:
-            await bot.upload_private_file(
-                user_id=event.user_id,
-                file=abs_path,
-                name=upload_filename
-            )
+        await async_file_operation(shutil.copy2, processed_file_path, temp_file_path)
+        logger.info(f"文件已复制到临时目录: {temp_file_path}")
         
-        file_type = file_ext.replace(".", "").upper()
-        if file_ext.lower() == ".zip":
-            from .config import plugin_config
-            password = plugin_config.asmr_zip_password
-            success_msg = f"压缩包 ({file_size_str}) 发送中，请稍等！密码: {password}"
-        else:
-            success_msg = f"文件 ({file_size_str}) [{file_type}] 发送中，请稍等！"
+        abs_path = os.path.abspath(temp_file_path)
         
-        return success_msg
-        
-    except Exception as e:
-        logger.error(f"文件上传失败: {str(e)}")
-        
-        file_type = file_ext.replace(".", "").upper()
-        if file_ext.lower() == ".zip":
-            from .config import plugin_config
-            password = plugin_config.asmr_zip_password
-            success_msg = f"压缩包 ({file_size_str}) 处理完成！密码: {password}"
-        else:
-            success_msg = f"文件 ({file_size_str}) [{file_type}] 处理完成！"
-        
-        return success_msg
-        
-    finally:
+        # 尝试上传文件
         try:
-            await async_file_operation(os.remove, temp_file_path)
-            if obfuscated_file_path != processed_file_path and obfuscated_file_path != original_file_path:
-                await async_file_operation(os.remove, obfuscated_file_path)
+            logger.info(f"尝试上传文件: {abs_path}，文件名: {upload_filename}")
+            if isinstance(event, GroupMessageEvent):
+                await bot.upload_group_file(
+                    group_id=event.group_id,
+                    file=abs_path,
+                    name=upload_filename
+                )
+            else:
+                await bot.upload_private_file(
+                    user_id=event.user_id,
+                    file=abs_path,
+                    name=upload_filename
+                )
+            
+            file_type = file_ext.replace(".", "").upper()
+            if file_ext == ".zip":
+                password = plugin_config.asmr_zip_password
+                success_msg = f"压缩包 ({file_size_str}) 发送中，请稍等！密码: {password}"
+            else:
+                success_msg = f"文件 ({file_size_str}) [{file_type}] 发送中，请稍等！"
+            
+            return success_msg
+            
         except Exception as e:
-            logger.error(f"删除临时文件失败: {str(e)}")
+            logger.warning(f"文件上传失败: {str(e)}")
+            
+            file_type = file_ext.replace(".", "").upper()
+            if file_ext == ".zip":
+                password = plugin_config.asmr_zip_password
+                success_msg = f"压缩包 ({file_size_str}) 处理完成！密码: {password}"
+            else:
+                success_msg = f"文件 ({file_size_str}) [{file_type}] 处理完成！"
+            
+            return success_msg
+            
+    finally:
+        # 清理临时文件
+        temp_files_to_remove = [temp_file_path]
+        if processed_file_path != original_file_path:
+            temp_files_to_remove.append(processed_file_path)
+        
+        for temp_file in temp_files_to_remove:
+            try:
+                if os.path.exists(temp_file):
+                    await async_file_operation(os.remove, temp_file)
+            except OSError as e:
+                logger.error(f"删除临时文件失败 {temp_file}: {str(e)}") 

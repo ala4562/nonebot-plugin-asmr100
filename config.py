@@ -36,28 +36,19 @@ def has_command(command):
     """检查系统命令是否可用"""
     return shutil.which(command) is not None
 
+def check_ffmpeg_dependency():
+    """检查ffmpeg依赖"""
+    if has_command("ffmpeg"):
+        logger.info("ffmpeg已安装，支持音频格式转换")
+    else:
+        logger.warning("ffmpeg未找到，音频格式转换功能可能不可用")
+
 async def check_dependencies():
     """检查系统依赖"""
     logger_prefix = "[ASMR100]"
     
     # 检查ffmpeg
-    if has_command("ffmpeg"):
-        logger.info(f"{logger_prefix} ffmpeg 已安装，支持音频格式转换")
-    else:
-        try:
-            process = await asyncio.create_subprocess_exec(
-                "ffmpeg", "-version",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode == 0:
-                logger.info(f"{logger_prefix} ffmpeg 已安装，支持音频格式转换")
-            else:
-                logger.warning(f"{logger_prefix} ffmpeg 未找到，音频格式转换功能可能不可用")
-        except Exception:
-            logger.warning(f"{logger_prefix} ffmpeg 检测失败，音频格式转换可能不可用")
+    check_ffmpeg_dependency()
     
     # 检查7z压缩工具
     sevenz_found = False

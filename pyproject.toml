@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "nonebot-plugin-asmr100" 
-version = "0.3.1"
+version = "0.3.2"
 description = "一个用于在QQ群中分享ASMR音声的NoneBot2插件"
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 keywords = ["nonebot", "nonebot2", "asmr", "plugin"]
 authors = [
-    {name = "阿福", email = "cynicis2023@outlook.com"}  
+    {name = "ala4562"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -34,8 +34,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/ala4562/nonebot-plugin-asmr100" 
-"Bug Tracker" = "https://github.com/ala4562/nonebot-plugin-asmr100/issues"  
+"Homepage" = "https://github.com/ala4562/nonebot-plugin-asmr100"
+"Bug Tracker" = "https://github.com/ala4562/nonebot-plugin-asmr100/issues"
 
 [tool.setuptools]
 packages = ["nonebot_plugin_asmr100", "nonebot_plugin_asmr100.commands"]
